@@ -9,6 +9,11 @@ While C is widely portable, and fairly close to Assembly Language, it has a dang
 Rust is a much safer language, which still allows controlled access to "unsafe" mechanisms required for OS development.
 
 Oxide is a memory-safe capability-secure operating system based on the Actor Model of computation.
+The [design](docs/design.md) of Oxide is based on a very small asynchronous message-passing micro-kernel.
+The three most important design requirements are:
+  * Low latency
+  * High throughput
+  * Provable safety
 
 ## Credits
 
