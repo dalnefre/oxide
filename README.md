@@ -49,6 +49,12 @@ cargo xrun
 
 Of course [QEMU] needs to be installed for this.
 
+You can run [QEMU] directly like this:
+
+```
+qemu-system-x86_64 -drive format=raw,file=target/x86_64-blog_os/debug/bootimage-blog_os.bin
+```
+
 You can also write the image to an USB stick for booting it on a real machine. On Linux, the command for this is:
 
 ```
