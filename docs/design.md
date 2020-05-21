@@ -83,3 +83,26 @@ in multiple configurations.
 The root configuration becomes the top-level system monitor,
 handling failures, restarts, and reconfigurations
 within the configuration tree.
+
+### Event Deques
+
+Each _configuration_ maintains a set of _actors_ and a set of pending message _events_.
+All of the work to be done within a configuration is represented by the pending-event set.
+Adding events (sending messages) and dispatching events (invoking actor behaviors)
+must be optimized for the runtime to exhibit good performance.
+
+We propose a deque,
+implemented by a fixed-size ring-buffer of cache-line sized event slots,
+as the central message-event dispatch data-structure.
+Events are dispatched from the head of the deque,
+where they can be referenced by the target actor's behavior
+without making a copy, since they are read-only.
+While executing a behavior,
+new events may be speculatively added
+to the tail of the deque.
+If the behavior signals failure,
+the tail-pointer is reset to discard the uncommitted events.
+Interrupt-handlers may add events before the head of the deque,
+ensuring that they are dispatched with priority
+and avoiding interference with uncommitted events.
+Sponsors will enforce limits that prevent overflow conditions.
