@@ -30,6 +30,10 @@ The three most important design requirements are:
   * transactional persistence
   * sound mathematical/logical theory
 
+The primary hardware platform for Oxide is a many-core x86-64 machine with a large main memory.
+We generally prefer to trade memory for higher performance, in terms of both latency and throughput.
+In addition, pre-allocation and configuration of fixed-size resource pools reduces variability in response times.
+
 ## Micro-Kernel
 
 Ultimately all work is done by a _processing unit_ (core).
