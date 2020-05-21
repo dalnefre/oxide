@@ -70,3 +70,16 @@ Sponsors may be shared across configurations,
 and/or created to manage fine-grained computations.
 Sponsors also form a parent-child tree structure,
 where a parent may sub-divide its resources among its children.
+
+### Bootstrap
+
+On start-up, a single core executes the boot process.
+This starts a single root actor configuration.
+The root configuration creates child configurations
+representing sub-systems defined by a load-out image.
+Additional cores are activated
+to support concurrent dispatch of message-events
+in multiple configurations.
+The root configuration becomes the top-level system monitor,
+handling failures, restarts, and reconfigurations
+within the configuration tree.
