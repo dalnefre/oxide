@@ -36,7 +36,14 @@ pub unsafe fn notify_timer_actor() {
     }
 }
 
-/// WARNING! called directly from timer interrupt
+/// safely obtain value of timer tick counter
+pub fn now() -> isize {
+    // we don't need a critical-section because
+    // the timer interrupt makes incrementing appear atomic
+    unsafe { return TICKS }
+}
+
+/// WARNING! called directly from keyboard interrupt
 pub unsafe fn notify_keyboard_actor(scancode: u8) {
     if let Some(sponsor) = ROOT.as_ref() {
         if let Some(keyboard) = KEYBOARD.as_ref() {
@@ -170,7 +177,7 @@ pub fn keyboard_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
 
 /// Debug printing actor behavior
 pub fn debug_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
-    println!("--DEBUG-- state={:#?} message={:#?}", &event.target.state, &event.message);
+    println!("--DEBUG-- state={:#?} message={:x}", &event.target.state, &event.message);
     true
 }
 
