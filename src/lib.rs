@@ -11,6 +11,7 @@
 extern crate alloc;
 
 use core::panic::PanicInfo;
+use bootloader::BootInfo;
 
 pub mod allocator;
 pub mod gdt;
@@ -20,10 +21,20 @@ pub mod serial;
 pub mod vga_screen;
 pub mod actor;
 
-pub fn init() {
+//use blog_os::actor;
+
+pub fn init(boot_info: &'static BootInfo) {
     gdt::init();
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
+
+    let phys_mem_offset = x86_64::VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+
+    actor::init();
+
     x86_64::instructions::interrupts::enable();
 }
 
@@ -65,15 +76,15 @@ pub fn hlt_loop() -> ! {
 }
 
 #[cfg(test)]
-use bootloader::{entry_point, BootInfo};
+use bootloader::entry_point;
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
 
 /// Entry point for `cargo xtest`
 #[cfg(test)]
-fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
-    init();
+fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
+    init(&boot_info);
     test_main();
     hlt_loop();
 }

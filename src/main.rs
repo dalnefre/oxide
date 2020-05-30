@@ -10,22 +10,13 @@ use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use blog_os::println;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use blog_os::actor;
 
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    use blog_os::allocator;
-    use blog_os::memory::{self, BootInfoFrameAllocator};
-    use x86_64::VirtAddr;
-
-    println!("Hello World{}", "!");
-    blog_os::init();
-
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
-
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+    println!("Starting {}...", "blog_os");
+    blog_os::init(&boot_info);
 
     // allocate a number on the heap
     let heap_value = Box::new(41);
@@ -54,12 +45,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
-/* --- no support for String type ---
-    let mut s = String::from("Hello");
-    s.push_str(", World!");
-    println!("{}", s);
-*/
-    blog_os::actor::try_actors();
+    actor::try_actors();
 
 /*
     loop {
@@ -67,7 +53,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     }
 */
     println!("It did not crash!");
-    blog_os::hlt_loop();
+    //blog_os::hlt_loop();
+    actor::dispatch_loop();
 }
 
 /// This function is called on panic.
