@@ -54,6 +54,18 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
+/* --- no support for String type ---
+    let mut s = String::from("Hello");
+    s.push_str(", World!");
+    println!("{}", s);
+*/
+    blog_os::actor::try_actors();
+
+/*
+    loop {
+        println!("It did not crash! (yet)");
+    }
+*/
     println!("It did not crash!");
     blog_os::hlt_loop();
 }
