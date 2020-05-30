@@ -4,37 +4,56 @@ use alloc::rc::Rc;
 //use alloc::rc::Weak;
 use core::cell::RefCell;
 use alloc::collections::VecDeque;
-//use x86_64::instructions::interrupts;
+use spin::Mutex;
+use lazy_static::lazy_static;
 use crate::{print, println};
 
 static mut ROOT: Option<Sponsor> = None;  // sponsor for interrupt handlers
 static mut TIMER: Option<Rc<Actor>> = None;  // timer interrupt handler
+static mut KEYBOARD: Option<Rc<Actor>> = None;  // keyboard interrupt handler
 
 pub fn init() {
     let sponsor = Sponsor::new();
     let timer = sponsor.create(Box::new(tick_beh), &Vec::new());
+    let keyboard = sponsor.create(Box::new(keyboard_beh), &Vec::new());
     unsafe {
         ROOT = Some(sponsor);
         TIMER = Some(timer);
+        KEYBOARD = Some(keyboard);
     }
 }
 
-pub unsafe fn notify_timer_actor() {  // WARNING! called directly from timer interrupt
+static mut TICKS: isize = 0;  // timer tick counter
+
+/// WARNING! called directly from timer interrupt
+pub unsafe fn notify_timer_actor() {
     if let Some(sponsor) = ROOT.as_ref() {
         if let Some(timer) = TIMER.as_ref() {
-            //print!("<>");
-            sponsor.send(timer.clone(), &42);
+            let now = TICKS;
+            TICKS += 1;
+            sponsor.send(timer.clone(), &now);
         }
     }
 }
 
-pub fn root_sponsor() -> Option<&'static Sponsor> {  // safely obtain a reference to the root sponsor
+/// WARNING! called directly from timer interrupt
+pub unsafe fn notify_keyboard_actor(scancode: u8) {
+    if let Some(sponsor) = ROOT.as_ref() {
+        if let Some(keyboard) = KEYBOARD.as_ref() {
+            let code: Message = scancode as isize;
+            sponsor.send(keyboard.clone(), &code);
+        }
+    }
+}
+
+/// safely obtain a reference to the root sponsor
+pub fn root_sponsor() -> Option<&'static Sponsor> {
     unsafe { ROOT.as_ref() }
 }
 
 type Action = dyn Fn(&Event, &Sponsor) -> Effect;
 
-type Message = usize; //Vec<u8>;
+type Message = isize; //Vec<u8>;
 
 type State = Vec<u8>;
 
@@ -106,19 +125,52 @@ impl Event{
     }
 }
 
+/// No-Op actor behavior
 pub fn sink_beh(_event: &Event, _sponsor: &Sponsor) -> Effect {
-    // no-op
     true
 }
 
-pub fn tick_beh(_event: &Event, _sponsor: &Sponsor) -> Effect {
-    // timer tick handler
-    print!("'");
+/// Timer tick-counter actor behavior
+pub fn tick_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
+    use crate::vga_screen::stat_print;
+
+    //print!("{}", event.message);
+    //print!("'");
+    let status = [b'/', b'-', b'\\', b'|'];
+    let index = (event.message & 0x03) as usize;
+    stat_print(status[index]);
     true
 }
 
+/// Keyboard key-translation actor behavior
+pub fn keyboard_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+
+    lazy_static! {
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
+            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
+        );
+    }
+
+    let scancode: u8 = event.message as u8;
+    //print!("<{}>", scancode);
+
+    let mut keyboard = KEYBOARD.lock();
+    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
+        if let Some(key) = keyboard.process_keyevent(key_event) {
+            match key {
+                DecodedKey::Unicode(character) => print!("{}", character),
+                DecodedKey::RawKey(key) => print!("{:?}", key),
+            }
+        }
+    }
+
+    true
+}
+
+/// Debug printing actor behavior
 pub fn debug_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
-    println!("--DEBUG-- state:{:?} message:{:?}", &event.target.state, &event.message);
+    println!("--DEBUG-- state={:#?} message={:#?}", &event.target.state, &event.message);
     true
 }
 
@@ -134,19 +186,21 @@ pub fn try_actors() {
     println!("> try_actors");
     if let Some(sponsor) = root_sponsor() {
         let a_debug = sponsor.create(Box::new(debug_beh), &str_as_vec("Hello"));
-        let message: usize = 0xC0FFEEFACADE;
+        let message: isize = 0xC0FFEEFACADE;
         sponsor.send(a_debug, &message);
     }
     println!("< try_actors");
 }
 
+/// Root sponsor dispatch loop
+///
+/// wait-for-interrupt when there are no events to dispatch
 pub fn dispatch_loop() -> ! {
-    println!("> dispatch_loop");
     let sponsor = root_sponsor().unwrap();
     loop {
+        //println!("It did not crash! (yet)");
         if sponsor.dispatch() == false {
             x86_64::instructions::hlt();  // no more events, so wait for interrupt...
         }
     }
-    //println!("< dispatch_loop");
 }

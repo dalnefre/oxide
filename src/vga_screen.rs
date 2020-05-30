@@ -13,6 +13,7 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::Green, Color::Black),
+        color_stat: ColorCode::new(Color::Blue, Color::Black),
         screen: unsafe { &mut *(0xb8000 as *mut Screen) },
     });
 }
@@ -78,6 +79,7 @@ struct Screen {
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
+    color_stat: ColorCode,
     screen: &'static mut Screen,
 }
 
@@ -144,6 +146,18 @@ impl Writer {
             self.screen.chars[row][col].write(blank);
         }
     }
+
+    /// Writes an ASCII byte upper-right corner of the screen.
+    pub fn write_status(&mut self, byte: u8) {
+        let row = 0;
+        let col = SCREEN_WIDTH - 1;
+
+        let color_code = self.color_stat;
+        self.screen.chars[row][col].write(ScreenChar {
+            ascii_character: byte,
+            color_code,
+        });
+    }
 }
 
 impl fmt::Write for Writer {
@@ -171,17 +185,16 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-/*
-    use x86_64::instructions::interrupts;
-
-    interrupts::without_interrupts(|| {
-        WRITER.lock().write_fmt(args).unwrap();
-    });
-*/
-    WRITER.lock().write_fmt(args).unwrap();
-/*
     // don't need to disable interrupts if we never call _print() from an interrupt handler...
-*/
+    WRITER.lock().write_fmt(args).unwrap();
+}
+
+/// Print a single-character status to the upper-right corner of the screen
+/// through the global `WRITER` instance.
+#[doc(hidden)]
+pub fn stat_print(byte: u8) {
+    // don't need to disable interrupts if we never call _print() from an interrupt handler...
+    WRITER.lock().write_status(byte);
 }
 
 #[test_case]

@@ -47,12 +47,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     actor::try_actors();
 
-/*
-    loop {
-        println!("It did not crash! (yet)");
-    }
-*/
     println!("It did not crash!");
+
     //blog_os::hlt_loop();
     actor::dispatch_loop();
 }
