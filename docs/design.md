@@ -91,9 +91,19 @@ All of the work to be done within a configuration is represented by the pending-
 Adding events (sending messages) and dispatching events (invoking actor behaviors)
 must be optimized for the runtime to exhibit good performance.
 
+```
+   pop <---+                         tail
+           |                           |
+    ... -+---+---+---+---+---+---+---+---+- ...
+push --> | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | <-- put
+    ... -+---+---+---+---+---+---+---+---+- ...
+           |                           |
+          head                         +---> pull
+```
+
 We propose a deque,
 implemented by a fixed-size ring-buffer of cache-line sized event slots,
-as the central message-event dispatch data-structure.
+as the central message-event dispatch data-structure for a _configuration_.
 Events are dispatched from the head of the deque,
 where they can be referenced by the target actor's behavior
 without making a copy, since they are read-only.
