@@ -14,8 +14,8 @@ static mut KEYBOARD: Option<Rc<Actor>> = None;  // keyboard interrupt handler
 
 pub fn init() {
     let sponsor = Sponsor::new();
-    let timer = sponsor.create(Box::new(tick_beh), &Vec::new());
-    let keyboard = sponsor.create(Box::new(keyboard_beh), &Vec::new());
+    let timer = sponsor.create(Box::new(tick_beh));
+    let keyboard = sponsor.create(Box::new(keyboard_beh));
     unsafe {
         ROOT = Some(sponsor);
         TIMER = Some(timer);
@@ -62,22 +62,18 @@ type Action = dyn Fn(&Event, &Sponsor) -> Effect;
 
 type Message = isize; //Vec<u8>;
 
-type State = Vec<u8>;
-
 type Effect = bool;
 
 pub struct Actor {
     behavior: RefCell<Box<Action>>,
-    state: RefCell<State>,
 }
 impl Actor {
-    fn new(behavior: Box<Action>, state: &State) -> Actor {
+    fn new(behavior: Box<Action>) -> Actor {
         Actor {
             behavior: RefCell::new(behavior),
-            state: RefCell::new(state.clone()),
         }
     }
-    fn notice(&self, event: &Event, sponsor: &Sponsor) -> Effect {
+    fn react(&self, event: &Event, sponsor: &Sponsor) -> Effect {
         (self.behavior.borrow())(event, sponsor)
     }
 }
@@ -93,8 +89,8 @@ impl Sponsor {
             events: RefCell::new(VecDeque::new()),
         }
     }
-    pub fn create(&self, behavior: Box<Action>, state: &State) -> Rc<Actor> {
-        let actor = Rc::new(Actor::new(behavior, &state));
+    pub fn create(&self, behavior: Box<Action>) -> Rc<Actor> {
+        let actor = Rc::new(Actor::new(behavior));
         self.actors.borrow_mut().push(Rc::clone(&actor));
         actor
     }
@@ -127,7 +123,7 @@ impl Event{
         }
     }
     fn dispatch(&self, sponsor: &Sponsor) -> Effect {
-        self.target.notice(&self, &sponsor)
+        self.target.react(&self, &sponsor)
         // FIXME: should return an Ok/Fail indication like Result or Option
     }
 }
@@ -177,22 +173,14 @@ pub fn keyboard_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
 
 /// Debug printing actor behavior
 pub fn debug_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
-    println!("--DEBUG-- state={:#?} message={:x}", &event.target.state, &event.message);
+    println!("--DEBUG-- message={:x}", &event.message);
     true
-}
-
-fn str_as_vec(s: &str) -> Vec<u8> {
-    let mut v = Vec::new();
-    for b in s.bytes() {
-        v.push(b)
-    }
-    v
 }
 
 pub fn try_actors() {
     println!("> try_actors");
     if let Some(sponsor) = root_sponsor() {
-        let a_debug = sponsor.create(Box::new(debug_beh), &str_as_vec("Hello"));
+        let a_debug = sponsor.create(Box::new(debug_beh));
         let message: isize = 0xC0FFEEFACADE;
         sponsor.send(a_debug, &message);
     }
