@@ -16,6 +16,10 @@ entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Starting {}...", "blog_os");
+    println!("boot_info.physical_memory_offset = 16#{:x} = 8#{:o}",
+        boot_info.physical_memory_offset,
+        boot_info.physical_memory_offset);
+    //println!("boot_info = {:#?}", boot_info);
     blog_os::init(&boot_info);
 
     // allocate a number on the heap
