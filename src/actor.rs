@@ -6,7 +6,9 @@ use core::cell::RefCell;
 use alloc::collections::VecDeque;
 use spin::Mutex;
 use lazy_static::lazy_static;
-use crate::{print, println};
+use crate::println;
+use crate::print;
+//use crate::serial_print;
 
 static mut ROOT: Option<Sponsor> = None;  // sponsor for interrupt handlers
 static mut TIMER: Option<Rc<Actor>> = None;  // timer interrupt handler
@@ -138,7 +140,7 @@ pub fn tick_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
     use crate::vga_screen::stat_print;
 
     //print!("{}", event.message);
-    //print!("'");
+    //serial_print!("'");
     let status = [b'/', b'-', b'\\', b'|'];
     let index = (event.message & 0x03) as usize;
     stat_print(status[index]);
@@ -157,6 +159,7 @@ pub fn keyboard_beh(event: &Event, _sponsor: &Sponsor) -> Effect {
 
     let scancode: u8 = event.message as u8;
     //print!("<{}>", scancode);
+    //serial_print!("<{}>", scancode);
 
     let mut keyboard = KEYBOARD.lock();
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
